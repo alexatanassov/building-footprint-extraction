@@ -1,0 +1,19 @@
+# Data
+data/
+__pycache__/
+*.pt
+*.pth
+*.onnx
+checkpoints/
+outputs/
+.wandb/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# DVC
+.dvc/
