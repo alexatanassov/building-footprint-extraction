@@ -5,8 +5,8 @@ __pycache__/
 *.onnx
 
 # Data (ignore only generated tiles, keep raw)
-data/tiles/images/
-data/tiles/labels/
+data/tiles_npz/images/
+data/tiles_npz/labels/
 
 # Model outputs/checkpoints
 checkpoints/
