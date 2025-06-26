@@ -1,9 +1,14 @@
-# Data
-data/
+# Python cache
 __pycache__/
 *.pt
 *.pth
 *.onnx
+
+# Data (ignore only generated tiles, keep raw)
+data/tiles/images/
+data/tiles/labels/
+
+# Model outputs/checkpoints
 checkpoints/
 outputs/
 .wandb/
@@ -17,4 +22,3 @@ outputs/
 
 # DVC
 .dvc/
-/data
