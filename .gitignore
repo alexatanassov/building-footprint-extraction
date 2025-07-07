@@ -8,6 +8,16 @@ __pycache__/
 data/tiles_npz/images/
 data/tiles_npz/labels/
 
+# Visual output
+*.png
+sample_grid.png
+prediction_samples.png
+visualized_dataloader_samples.png
+
+# Ignore other generated data folders
+data/
+dvc-storage/
+
 # Model outputs/checkpoints
 checkpoints/
 outputs/

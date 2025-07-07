@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 from datasets.building_dataset import get_dataloaders
-from models.unet import UNet
+from models.resnet_unet import ResNetUNet
 from models.losses import DiceBCELoss
 
 # Device setup
@@ -30,7 +30,7 @@ LABEL_DIR = "data/tiles_npz/labels"
 train_loader, val_loader, test_loader = get_dataloaders(IMAGE_DIR, LABEL_DIR, batch_size=BATCH_SIZE)
 
 # Model, loss, optimizer
-model = UNet(in_channels=8, out_channels=1).to(device)
+model = ResNetUNet(n_channels=8, n_classes=1).to(device)
 criterion = DiceBCELoss()
 optimizer = optim.Adam(model.parameters(), lr=LR)
 
