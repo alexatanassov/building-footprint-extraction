@@ -1,4 +1,7 @@
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import csv
 import torch
 import torch.nn as nn
@@ -8,24 +11,20 @@ from datasets.building_dataset import get_dataloaders
 from models.unet import UNet
 from models.losses import DiceBCELoss
 
-# Device setup
-if torch.backends.mps.is_available():
-    device = torch.device("mps")
-elif torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
-
-print(f"Using device: {device}")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}", flush=True)
 
 # Hyperparameters
-EPOCHS = 3
-BATCH_SIZE = 8
+EPOCHS = 10
+BATCH_SIZE = 32
 LR = 1e-4
 
 # Paths to compressed tile data
-IMAGE_DIR = "data/tiles_npz/images"
-LABEL_DIR = "data/tiles_npz/labels"
+IMAGE_DIR = "/content/data/tiles_subset_5000/images"
+LABEL_DIR = "/content/data/tiles_subset_5000/labels"
+
+print("Found images:", len(os.listdir(IMAGE_DIR)))
+print("Found labels:", len(os.listdir(LABEL_DIR)))
 
 # Load data
 train_loader, val_loader, test_loader = get_dataloaders(IMAGE_DIR, LABEL_DIR, batch_size=BATCH_SIZE)
@@ -44,12 +43,15 @@ def train():
     log_file = "logs/unet_training_log.csv"
     with open(log_file, mode="w", newline="") as file:
         writer = csv.writer(file)
-        writer.writerow(["Epoch", "Loss"])  # Header
+        writer.writerow(["Epoch", "Loss"])  # CSV header
 
         for epoch in range(EPOCHS):
             total_loss = 0
-            for imgs, masks in tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
-                imgs, masks = imgs.to(device), masks.to(device).unsqueeze(1)  # Add channel dim to mask
+            loop = tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}", leave=False)
+
+            for imgs, masks in loop:
+                imgs = imgs.to(device)
+                masks = masks.to(device).unsqueeze(1)  # Add channel dim
 
                 preds = model(imgs)
                 loss = criterion(preds, masks)
@@ -59,13 +61,15 @@ def train():
                 optimizer.step()
 
                 total_loss += loss.item()
+                loop.set_postfix(loss=loss.item())
 
             avg_loss = total_loss / len(train_loader)
-            print(f"Epoch {epoch+1}, Loss: {avg_loss:.4f}")
+            print(f"Epoch {epoch+1}, Avg Loss: {avg_loss:.4f}", flush=True)
             writer.writerow([epoch + 1, avg_loss])
 
     torch.save(model.state_dict(), "checkpoints/unet.pth")
-    print("Model saved to checkpoints/unet.pth")
+    print("Model saved to checkpoints/unet.pth", flush=True)
 
 if __name__ == "__main__":
+    torch.cuda.empty_cache()
     train()
