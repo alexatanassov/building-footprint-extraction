@@ -37,6 +37,10 @@ class BuildingDataset(Dataset):
 def get_dataset_paths(image_dir, label_dir):
     image_paths = sorted(glob.glob(os.path.join(image_dir, "*.npz")))
     label_paths = sorted(glob.glob(os.path.join(label_dir, "*.npz")))
+
+    print(f"Found {len(image_paths)} image files in {image_dir}")
+    print(f"Found {len(label_paths)} label files in {label_dir}")
+
     return image_paths, label_paths
 
 
@@ -46,6 +50,8 @@ def get_dataloaders(image_dir, label_dir, batch_size=8, seed=42, max_samples=500
     # Subsample the dataset
     image_paths = image_paths[:max_samples]
     label_paths = label_paths[:max_samples]
+
+    assert len(image_paths) == len(label_paths), "Mismatch in images and labels after subsampling"
 
     train_imgs, test_imgs, train_lbls, test_lbls = train_test_split(
         image_paths, label_paths, test_size=0.2, random_state=seed)
