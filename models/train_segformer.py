@@ -92,7 +92,9 @@ def train():
             for img_batch, mask_batch in loop:
                 inputs, masks = preprocess(img_batch, mask_batch)
                 outputs = model(**inputs)
-                loss = torch.nn.functional.binary_cross_entropy_with_logits(outputs.logits, masks)
+                logits = outputs.logits
+                logits = torch.nn.functional.interpolate(logits, size=masks.shape[2:], mode="bilinear", align_corners=False)
+                loss = torch.nn.functional.binary_cross_entropy_with_logits(logits, masks)
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -112,7 +114,9 @@ def train():
                 for img_batch, mask_batch in val_loader:
                     inputs, masks = preprocess(img_batch, mask_batch)
                     outputs = model(**inputs)
-                    preds = torch.sigmoid(outputs.logits)
+                    logits = outputs.logits
+                    logits = torch.nn.functional.interpolate(logits, size=masks.shape[2:], mode="bilinear", align_corners=False)
+                    preds = torch.sigmoid(logits)
 
                     dice = compute_dice(preds, masks).item()
                     iou = compute_iou(preds, masks).item()
