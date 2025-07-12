@@ -43,9 +43,18 @@ def compute_iou(preds, targets, threshold=0.5, eps=1e-6):
 processor = SegformerImageProcessor.from_pretrained("nvidia/segformer-b0-finetuned-ade-512-512")
 
 def preprocess(img_tensor, mask_tensor):
-    # Extract first 3 channels
     rgb = img_tensor[:, :3, :, :]  # [B, 3, H, W]
-    processed = processor(images=[x.permute(1, 2, 0).cpu().numpy() for x in rgb], return_tensors="pt", padding="max_length", truncation=True)
+    rgb = rgb.clone().detach()
+
+    # Normalize and convert to uint8 (for processor compatibility)
+    rgb = rgb / 6.0  # since you had values up to ~7
+    rgb = torch.clamp(rgb, 0, 1)
+    rgb = (rgb * 255).byte()
+
+    # Convert to numpy
+    rgb_imgs = [x.permute(1, 2, 0).cpu().numpy() for x in rgb]  # HWC
+
+    processed = processor(images=rgb_imgs, return_tensors="pt")
     inputs = {k: v.to(device) for k, v in processed.items()}
     masks = mask_tensor.unsqueeze(1).to(device).float()
     return inputs, masks
