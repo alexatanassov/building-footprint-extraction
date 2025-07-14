@@ -8,6 +8,7 @@ if project_root not in sys.path:
 
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 import csv
 from tqdm import tqdm
 from PIL import Image
@@ -19,9 +20,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
 
 # ---------- Hyperparameters ----------
-EPOCHS = 10
-BATCH_SIZE = 8  # lower for memory constraints
-LR = 5e-5
+EPOCHS = 30
+BATCH_SIZE = 8
+LR = 2e-5
 
 # ---------- Data Paths ----------
 IMAGE_DIR = "/content/data/tiles_subset_5000/images"
@@ -74,16 +75,20 @@ model.config.id2label = {0: "background", 1: "building"}
 model.config.label2id = {"background": 0, "building": 1}
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=3, verbose=True)
 
 # ---------- Training ----------
 def train():
     model.train()
     os.makedirs("logs", exist_ok=True)
     log_file = "logs/segformer_metrics.csv"
+    os.makedirs("checkpoints", exist_ok=True)
 
     with open(log_file, mode="w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(["Epoch", "Train Loss", "Val Dice", "Val IoU"])
+
+        best_dice = 0
 
         for epoch in range(EPOCHS):
             total_loss = 0
@@ -126,12 +131,30 @@ def train():
             val_dice = sum(dice_scores) / len(dice_scores)
             val_iou = sum(iou_scores) / len(iou_scores)
 
+            scheduler.step(val_dice)
+            
+            # --- Save best model ---
+            if epoch == 0 or val_dice > best_dice:
+                best_dice = val_dice
+                torch.save(model.state_dict(), "checkpoints/best_segformer.pth")
+                print("✓ Saved new best model")
+
+            # --- Optional visualization ---
+            if (epoch + 1) % 5 == 0:
+                vis_pred = (preds[0].squeeze().cpu().numpy() > 0.5).astype(np.uint8)
+                vis_mask = masks[0].squeeze().cpu().numpy()
+                plt.figure(figsize=(10, 4))
+                plt.subplot(1, 2, 1); plt.imshow(vis_mask, cmap='gray'); plt.title("Ground Truth")
+                plt.subplot(1, 2, 2); plt.imshow(vis_pred, cmap='gray'); plt.title("Prediction")
+                plt.savefig(f"logs/vis_epoch_{epoch+1}.png")
+                plt.close()
+
             print(f"Epoch {epoch+1}: Train Loss = {avg_loss:.4f} | Val Dice = {val_dice:.4f} | Val IoU = {val_iou:.4f}", flush=True)
             writer.writerow([epoch + 1, avg_loss, val_dice, val_iou])
             model.train()
 
-    torch.save(model.state_dict(), "checkpoints/segformer.pth")
-    print("Model saved to checkpoints/segformer.pth")
+    torch.save(model.state_dict(), "checkpoints/segformer_new.pth")
+    print("Model saved to checkpoints/segformer_new.pth")
 
 if __name__ == "__main__":
     train()
