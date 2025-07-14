@@ -10,7 +10,8 @@ import torch
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
-from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
+from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor, SegformerConfig
+
 from datasets.building_dataset import get_dataloaders
 
 # ---------- Device ----------
@@ -18,9 +19,16 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
 
 # ---------- Load Model ----------
-model = SegformerForSemanticSegmentation.from_pretrained(
-    "nvidia/segformer-b0-finetuned-ade-512-512"
-).to(device)
+config = SegformerConfig.from_pretrained("nvidia/segformer-b0-finetuned-ade-512-512")
+config.num_labels = 1
+config.id2label = {0: "building"}
+config.label2id = {"building": 0}
+
+# Initialize model from config (binary head)
+model = SegformerForSemanticSegmentation(config).to(device)
+
+# Load your fine-tuned checkpoint (NOT the HF pretrained one)
+model.load_state_dict(torch.load("checkpoints/segformer.pth", map_location=device))
 processor = SegformerImageProcessor.from_pretrained(
     "nvidia/segformer-b0-finetuned-ade-512-512"
 )
@@ -65,11 +73,13 @@ with torch.no_grad():
 
         # Forward pass
         outputs = model(**inputs)
-        logits = outputs.logits  # [1, num_classes, H, W]
+        logits = outputs.logits  # [1, 1, H, W] for binary segmentation
 
-        # Convert to binary mask: class 1 = building
-        probs = torch.softmax(logits, dim=1)
-        pred_mask = probs[:, 1:2]  # Assuming class 1 is 'building'
+        pred_mask = torch.sigmoid(logits)
+
+        # Debug range
+        print(f"Logits: min={logits.min().item():.4f}, max={logits.max().item():.4f}")
+        print(f"Sigmoid: min={pred_mask.min().item():.4f}, max={pred_mask.max().item():.4f}")
 
         # Resize to match original mask size
         pred_mask = torch.nn.functional.interpolate(
